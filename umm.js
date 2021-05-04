@@ -187,7 +187,7 @@ var Module = typeof Module !== 'undefined' ? Module : {};
     }
   
    }
-   loadPackage({"files": [{"filename": "/shaders/vertex.glsl", "start": 0, "end": 401, "audio": 0}, {"filename": "/shaders/fragment.glsl", "start": 401, "end": 710, "audio": 0}, {"filename": "/blah.bmp", "start": 710, "end": 360764, "audio": 0}], "remote_package_size": 360764, "package_uuid": "1b01e0f0-aa50-467d-83b8-732d78355849"});
+   loadPackage({"files": [{"filename": "/shaders/vertex.glsl", "start": 0, "end": 401, "audio": 0}, {"filename": "/shaders/fragment.glsl", "start": 401, "end": 710, "audio": 0}, {"filename": "/blah.bmp", "start": 710, "end": 360764, "audio": 0}], "remote_package_size": 360764, "package_uuid": "df7e570a-27f3-4895-acbd-af84485b8dba"});
   
   })();
   
