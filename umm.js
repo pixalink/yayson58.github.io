@@ -187,7 +187,7 @@ var Module = typeof Module !== 'undefined' ? Module : {};
     }
   
    }
-   loadPackage({"files": [{"filename": "/shaders/vertex.glsl", "start": 0, "end": 371, "audio": 0}, {"filename": "/shaders/fragment.glsl", "start": 371, "end": 661, "audio": 0}, {"filename": "/blah.png", "start": 661, "end": 6287, "audio": 0}], "remote_package_size": 6287, "package_uuid": "a1d4df40-f4ea-4413-b0d1-41f78b95465f"});
+   loadPackage({"files": [{"filename": "/shaders/vertex.glsl", "start": 0, "end": 371, "audio": 0}, {"filename": "/shaders/fragment.glsl", "start": 371, "end": 661, "audio": 0}, {"filename": "/blah.png", "start": 661, "end": 6287, "audio": 0}], "remote_package_size": 6287, "package_uuid": "ba3269bf-715b-4404-a1a1-e3ae14e5db46"});
   
   })();
   
@@ -5474,6 +5474,8 @@ var ASM_CONSTS = {
           }
         });
       }};
+  function _glActiveTexture(x0) { GLctx['activeTexture'](x0) }
+
   function _glAttachShader(program, shader) {
       GLctx.attachShader(GL.programs[program], GL.shaders[shader]);
     }
@@ -5504,6 +5506,10 @@ var ASM_CONSTS = {
       GLctx['bindVertexArray'](GL.vaos[vao]);
     }
 
+  function _glBlendEquation(x0) { GLctx['blendEquation'](x0) }
+
+  function _glBlendFunc(x0, x1) { GLctx['blendFunc'](x0, x1) }
+
   function _glBufferData(target, size, data, usage) {
   
       if (GL.currentContext.version >= 2) { // WebGL 2 provides new garbage-free entry points to call to WebGL. Use those always when possible.
@@ -5517,6 +5523,14 @@ var ASM_CONSTS = {
         // randomly mixing both uses in calling code, to avoid any potential JS engine JIT issues.
         GLctx.bufferData(target, data ? HEAPU8.subarray(data, data+size) : size, usage);
       }
+    }
+
+  function _glBufferSubData(target, offset, size, data) {
+      if (GL.currentContext.version >= 2) { // WebGL 2 provides new garbage-free entry points to call to WebGL. Use those always when possible.
+        GLctx.bufferSubData(target, offset, HEAPU8, data, size);
+        return;
+      }
+      GLctx.bufferSubData(target, offset, HEAPU8.subarray(data, data+size));
     }
 
   function _glClear(x0) { GLctx['clear'](x0) }
@@ -5546,18 +5560,6 @@ var ASM_CONSTS = {
       return id;
     }
 
-  function _glDeleteProgram(id) {
-      if (!id) return;
-      var program = GL.programs[id];
-      if (!program) { // glDeleteProgram actually signals an error when deleting a nonexisting object, unlike some other GL delete functions.
-        GL.recordError(0x501 /* GL_INVALID_VALUE */);
-        return;
-      }
-      GLctx.deleteProgram(program);
-      program.name = 0;
-      GL.programs[id] = null;
-    }
-
   function _glDeleteShader(id) {
       if (!id) return;
       var shader = GL.shaders[id];
@@ -5569,13 +5571,7 @@ var ASM_CONSTS = {
       GL.shaders[id] = null;
     }
 
-  function _glDeleteVertexArrays(n, vaos) {
-      for (var i = 0; i < n; i++) {
-        var id = HEAP32[(((vaos)+(i*4))>>2)];
-        GLctx['deleteVertexArray'](GL.vaos[id]);
-        GL.vaos[id] = null;
-      }
-    }
+  function _glDisable(x0) { GLctx['disable'](x0) }
 
   function _glDrawElements(mode, count, type, indices) {
   
@@ -5616,6 +5612,10 @@ var ASM_CONSTS = {
   function _glGenVertexArrays(n, arrays) {
       __glGenObject(n, arrays, 'createVertexArray', GL.vaos
         );
+    }
+
+  function _glGetAttribLocation(program, name) {
+      return GLctx.getAttribLocation(GL.programs[program], UTF8ToString(name));
     }
 
   function _glGetProgramInfoLog(program, maxLength, length, infoLog) {
@@ -5796,6 +5796,8 @@ var ASM_CONSTS = {
   
     }
 
+  function _glScissor(x0, x1, x2, x3) { GLctx['scissor'](x0, x1, x2, x3) }
+
   function _glShaderSource(shader, count, string, length) {
       var source = GL.getSource(shader, count, string, length);
   
@@ -5902,7 +5904,10 @@ var ASM_CONSTS = {
       // Else an already cached WebGLUniformLocation, return it.
       return webglLoc;
     }
-  
+  function _glUniform1i(location, v0) {
+      GLctx.uniform1i(webglGetUniformLocation(location), v0);
+    }
+
   var miniTempWebGLFloatBuffers=[];
   function _glUniformMatrix4fv(location, count, transpose, value) {
   
@@ -5954,6 +5959,8 @@ var ASM_CONSTS = {
   function _glVertexAttribPointer(index, size, type, normalized, stride, ptr) {
       GLctx.vertexAttribPointer(index, size, type, !!normalized, stride, ptr);
     }
+
+  function _glViewport(x0, x1, x2, x3) { GLctx['viewport'](x0, x1, x2, x3) }
 
   /** @constructor */
   function GLFW_Window(id, width, height, title, monitor, share) {
@@ -6713,8 +6720,51 @@ var ASM_CONSTS = {
       return GLFW.createWindow(width, height, title, monitor, share);
     }
 
+  function _glfwGetClipboardString(win) {}
+
+  function _glfwGetCursorPos(winid, x, y) {
+      GLFW.getCursorPos(winid, x, y);
+    }
+
+  function _glfwGetFramebufferSize(winid, width, height) {
+      var ww = 0;
+      var wh = 0;
+  
+      var win = GLFW.WindowFromId(winid);
+      if (win) {
+        ww = win.width;
+        wh = win.height;
+      }
+  
+      if (width) {
+        setValue(width, ww, 'i32');
+      }
+  
+      if (height) {
+        setValue(height, wh, 'i32');
+      }
+    }
+
   function _glfwGetKey(winid, key) {
       return GLFW.getKey(winid, key);
+    }
+
+  function _glfwGetMouseButton(winid, button) {
+      return GLFW.getMouseButton(winid, button);
+    }
+
+  function _glfwGetTime() {
+      return GLFW.getTime() - GLFW.initialTime;
+    }
+
+  function _glfwGetWindowSize(winid, width, height) {
+      GLFW.getWindowSize(winid, width, height);
+    }
+
+  function _glfwGetWindowUserPointer(winid) {
+      var win = GLFW.WindowFromId(winid);
+      if (!win) return 0;
+      return win.userptr;
     }
 
   function _glfwInit() {
@@ -6753,14 +6803,42 @@ var ASM_CONSTS = {
 
   function _glfwMakeContextCurrent(winid) {}
 
+  function _glfwSetCharCallback(winid, cbfun) {
+      return GLFW.setCharCallback(winid, cbfun);
+    }
+
+  function _glfwSetClipboardString(win, string) {}
+
+  function _glfwSetFramebufferSizeCallback(winid, cbfun) {
+      var win = GLFW.WindowFromId(winid);
+      if (!win) return null;
+      var prevcbfun = win.framebufferSizeFunc;
+      win.framebufferSizeFunc = cbfun;
+      return prevcbfun;
+    }
+
   function _glfwSetKeyCallback(winid, cbfun) {
       return GLFW.setKeyCallback(winid, cbfun);
+    }
+
+  function _glfwSetMouseButtonCallback(winid, cbfun) {
+      return GLFW.setMouseButtonCallback(winid, cbfun);
+    }
+
+  function _glfwSetScrollCallback(winid, cbfun) {
+      return GLFW.setScrollCallback(winid, cbfun);
     }
 
   function _glfwSetWindowShouldClose(winid, value) {
       var win = GLFW.WindowFromId(winid);
       if (!win) return;
       win.shouldClose = value;
+    }
+
+  function _glfwSetWindowUserPointer(winid, ptr) {
+      var win = GLFW.WindowFromId(winid);
+      if (!win) return;
+      win.userptr = ptr;
     }
 
   function _glfwTerminate() {
@@ -6894,43 +6972,63 @@ var asmLibraryArg = {
   "fd_read": _fd_read,
   "fd_seek": _fd_seek,
   "fd_write": _fd_write,
+  "glActiveTexture": _glActiveTexture,
   "glAttachShader": _glAttachShader,
   "glBindBuffer": _glBindBuffer,
   "glBindTexture": _glBindTexture,
   "glBindVertexArray": _glBindVertexArray,
+  "glBlendEquation": _glBlendEquation,
+  "glBlendFunc": _glBlendFunc,
   "glBufferData": _glBufferData,
+  "glBufferSubData": _glBufferSubData,
   "glClear": _glClear,
   "glClearColor": _glClearColor,
   "glCompileShader": _glCompileShader,
   "glCreateProgram": _glCreateProgram,
   "glCreateShader": _glCreateShader,
-  "glDeleteProgram": _glDeleteProgram,
   "glDeleteShader": _glDeleteShader,
-  "glDeleteVertexArrays": _glDeleteVertexArrays,
+  "glDisable": _glDisable,
   "glDrawElements": _glDrawElements,
   "glEnable": _glEnable,
   "glEnableVertexAttribArray": _glEnableVertexAttribArray,
   "glGenBuffers": _glGenBuffers,
   "glGenTextures": _glGenTextures,
   "glGenVertexArrays": _glGenVertexArrays,
+  "glGetAttribLocation": _glGetAttribLocation,
   "glGetProgramInfoLog": _glGetProgramInfoLog,
   "glGetProgramiv": _glGetProgramiv,
   "glGetShaderInfoLog": _glGetShaderInfoLog,
   "glGetShaderiv": _glGetShaderiv,
   "glGetUniformLocation": _glGetUniformLocation,
   "glLinkProgram": _glLinkProgram,
+  "glScissor": _glScissor,
   "glShaderSource": _glShaderSource,
   "glTexImage2D": _glTexImage2D,
   "glTexParameteri": _glTexParameteri,
+  "glUniform1i": _glUniform1i,
   "glUniformMatrix4fv": _glUniformMatrix4fv,
   "glUseProgram": _glUseProgram,
   "glVertexAttribPointer": _glVertexAttribPointer,
+  "glViewport": _glViewport,
   "glfwCreateWindow": _glfwCreateWindow,
+  "glfwGetClipboardString": _glfwGetClipboardString,
+  "glfwGetCursorPos": _glfwGetCursorPos,
+  "glfwGetFramebufferSize": _glfwGetFramebufferSize,
   "glfwGetKey": _glfwGetKey,
+  "glfwGetMouseButton": _glfwGetMouseButton,
+  "glfwGetTime": _glfwGetTime,
+  "glfwGetWindowSize": _glfwGetWindowSize,
+  "glfwGetWindowUserPointer": _glfwGetWindowUserPointer,
   "glfwInit": _glfwInit,
   "glfwMakeContextCurrent": _glfwMakeContextCurrent,
+  "glfwSetCharCallback": _glfwSetCharCallback,
+  "glfwSetClipboardString": _glfwSetClipboardString,
+  "glfwSetFramebufferSizeCallback": _glfwSetFramebufferSizeCallback,
   "glfwSetKeyCallback": _glfwSetKeyCallback,
+  "glfwSetMouseButtonCallback": _glfwSetMouseButtonCallback,
+  "glfwSetScrollCallback": _glfwSetScrollCallback,
   "glfwSetWindowShouldClose": _glfwSetWindowShouldClose,
+  "glfwSetWindowUserPointer": _glfwSetWindowUserPointer,
   "glfwTerminate": _glfwTerminate,
   "setTempRet0": _setTempRet0
 };
